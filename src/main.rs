@@ -1,5 +1,11 @@
-use std::io::Write; // Импортируем модуль для работы с вводом/выводом
+use std::io::Write;
+use std::time::Duration; // Импортируем модуль для работы с вводом/выводом
 use sha2::{self, Digest}; // Импортируем библиотеку sha2 для хеширования
+use clipboard::ClipboardProvider;
+use clipboard::ClipboardContext;
+use std::thread::sleep;
+
+const CLIPBOARD_SECOND : u64 = 10;
 
 fn main() {
     let mut stdout = std::io::stdout(); // Получаем стандартный вывод
@@ -11,8 +17,13 @@ fn main() {
     let password = rpassword::read_password().unwrap(); 
     let hash = create_hash(&password); 
     let ch_vec = create_ch_vector(); 
-    let result = create_pass(hash, &ch_vec); 
-    writeln!(stdout, "{}", result).unwrap(); 
+    let result = create_pass(hash, &ch_vec);
+    let mut clipboard : ClipboardContext = ClipboardProvider::new().unwrap();
+    clipboard.set_contents(result.to_owned()).unwrap();
+    writeln!(stdout, "Пароль скопирован").unwrap();
+    sleep(Duration::new(CLIPBOARD_SECOND, 0));
+    writeln!(stdout ,"Программа завершена").unwrap();
+    stdout.flush().unwrap(); // Очищаем буфер вывода
 }
 
 /// Создает вектор символов из ASCII (от 33 до 126)
