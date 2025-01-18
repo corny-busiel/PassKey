@@ -7,53 +7,72 @@ use std::thread::sleep;
 
 const CLIPBOARD_SECOND : u64 = 10;
 
+//const COUNTER : i64 = 42;
+
 fn main() {
     let mut stdout = std::io::stdout(); // Получаем стандартный вывод
 
     // Запрашиваем ввод у пользователя
-    write!(stdout, "Введите строку для генерации пароля: ").unwrap();
+    write!(stdout, "Введите seed_pharase: ").unwrap();
     stdout.flush().unwrap(); // Очищаем буфер вывода
+    let seed_seed_pharase = rpassword::read_password().unwrap();
 
-    let password = rpassword::read_password().unwrap(); 
-    let hash = create_hash(&password); 
-    let ch_vec = create_ch_vector(); 
-    let result = create_pass(hash, &ch_vec);
+    //writeln!(stdout, "").unwrap();
+
+    write!(stdout, "Введите password: ").unwrap();
+    stdout.flush().unwrap(); // Очищаем буфер вывода
+    let password = rpassword::read_password().unwrap();
+
+    write!(stdout, "Введите counter: ").unwrap();
+    stdout.flush().unwrap(); // Очищаем буфер вывода
+    let counter: i64 = rpassword::read_password().unwrap().parse().unwrap();
+    
+    let ch_vector = create_ch_vector();
+
+    let result_pass = 
+        create_pass(&ch_vector,
+        create_vec_result(
+            create_hash(&seed_seed_pharase),
+            create_hash(&password), 
+            counter, 
+            ch_vector.len())
+    );
+    writeln!(stdout, "{}", result_pass).unwrap();
+    
     let mut clipboard : ClipboardContext = ClipboardProvider::new().unwrap();
-    clipboard.set_contents(result.to_owned()).unwrap();
+    clipboard.set_contents(result_pass.to_owned()).unwrap();
     writeln!(stdout, "Пароль скопирован").unwrap();
     sleep(Duration::new(CLIPBOARD_SECOND, 0));
-    writeln!(stdout ,"Программа завершена").unwrap();
-    stdout.flush().unwrap(); // Очищаем буфер вывода
+    writeln!(stdout, "Программа завершена").unwrap();
 }
+
+fn create_hash(word: &str) -> Vec<u8> {
+        let word_as_bytes = word.as_bytes();
+        let hasher = sha2::Sha256::digest(word_as_bytes);
+        hasher.to_vec()
+    }
+
+fn create_vec_result(hash_seed_pharase: Vec<u8>, hash_password : Vec<u8>, counter : i64, len_ch_vec : usize) -> Vec<u8> { 
+        let mut result_vec = Vec::new();
+        for i in 0..hash_seed_pharase.len() {
+            let result = ((hash_password[i] as i64 * hash_seed_pharase[i] as i64) ^ counter) % len_ch_vec as i64;
+            result_vec.push(result as u8);
+
+        }
+        result_vec
+    }
+
+fn create_pass(ch_vec: &[char], result_vec : Vec<u8>) -> String { 
+        let mut string_result = String::new();
+        for i in &result_vec {
+            string_result.push(ch_vec[*i as usize]);
+        }
+        string_result
+    }
+
 
 /// Создает вектор символов из ASCII (от 33 до 126)
 fn create_ch_vector() -> Vec<char> {
     (33..127).filter_map(std::char::from_u32).collect()
 }
 
-/// Создает вектор байтов из хеша
-fn create_hash(word: &str) -> Vec<u8> {
-    let word_as_bytes = word.as_bytes();
-    let hasher = sha2::Sha256::digest(word_as_bytes);
-    hasher.to_vec()
-}
-
-/// Преобразует хеш в вектор индексов символов
-fn create_vec_result(hash: Vec<u8>, ch_vec: &[char]) -> Vec<u8> { // Изменено на &[char]
-    let mut result_vec = Vec::new();
-    for i in hash {
-        let a = i % ch_vec.len() as u8;
-        result_vec.push(a);
-    }
-    result_vec
-}
-
-/// Генерирует строку пароля на основе хеша и вектора символов
-fn create_pass(hash: Vec<u8>, ch_vec: &[char]) -> String { // Изменено на &[char]
-    let mut string_result = String::new();
-    let result_vec = create_vec_result(hash, ch_vec); // Изменено на ch_vec
-    for i in &result_vec {
-        string_result.push(ch_vec[*i as usize]);
-    }
-    string_result
-}
